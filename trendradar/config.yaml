@@ -123,6 +123,9 @@ schema:
   s3_secret_access_key: "password?"
   s3_region: "str?"
 
-# Image base name — used by HA build pipeline in tandem with build.yaml.
-# Optional but kept for clarity / fallback.
-image: "trendradar-{arch}"
+# Image base name — the BUILT image lives at ghcr.io/ewan-wang/ha-trendradar-{arch}:latest.
+# HA Supervisor substitutes {arch} with the running host's architecture and pulls the
+# matching single-arch image. We publish both linux/amd64 and linux/arm64 via
+# `docker buildx build --platform linux/amd64,linux/arm64 --tag .../amd64:latest --tag .../aarch64:latest --push`.
+# (HA convention is to tag per-arch images with `-amd64` / `-aarch64` suffixes.)
+image: "ghcr.io/ewan-wang/ha-trendradar-{arch}:latest"
