@@ -92,7 +92,7 @@ Detailed per-addon docs: see [`trendradar/README.md`](./trendradar/README.md).
 ## Before publishing — checklist
 
 - [ ] **Replace `icon.png` and `logo.png`** in `trendradar/` with real TrendRadar icons (current placeholders are 1×1 transparent PNGs).
-- [ ] **Replace `<your-username>` and `<your-email@example.com>`** in `repository.json` with your real GitHub identity.
+- [x] **`repository.json` is already configured** for `ewan <yf.wang.dev@gmail.com>` → `https://github.com/ewan/ha-trendradar` (adjust if your GitHub login differs).
 - [ ] Bump `version` in `trendradar/config.yaml` when you re-release.
 - [ ] Update `trendradar/CHANGELOG.md`.
 - [ ] Decide whether to track the upstream image by `:latest` (current setting) or pin to a digest for reproducibility.

@@ -1,5 +1,5 @@
 {
   "name": "TrendRadar for Home Assistant",
-  "url": "https://github.com/<your-username>/trendradar-hass-addon",
-  "maintainer": "<your-name> <<your-email@example.com>>"
+  "url": "https://github.com/ewan/ha-trendradar",
+  "maintainer": "ewan <yf.wang.dev@gmail.com>"
 }
