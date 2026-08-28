@@ -1,0 +1,105 @@
+# Build & publish the add-on image(s) to ghcr.io.
+#
+# Why this workflow exists:
+#   HA Supervisor resolves `image: "ghcr.io/...ha-trendradar-{arch}:latest"`
+#   by substituting {arch} with the host arch and pulling that tagged image.
+#   It does NOT consume a single multi-arch image-index. So we publish two
+#   single-arch images, one per arch, sharing the same tag (:latest).
+#
+# Triggers:
+#   - push to main           → build + push :latest + git short SHA tag
+#   - workflow_dispatch      → manual rebuild (no tag, just :latest)
+#
+# Authentication:
+#   - Uses the workflow's built-in GITHUB_TOKEN (granted packages:write
+#     permission for this repo's ghcr.io namespace by the `permissions`
+#     block below). No PAT required.
+
+name: Build & publish add-on images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'trendradar/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: build & push (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            build_arg_arch: amd64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm    # native ARM64 runner (faster than QEMU)
+            build_arg_arch: aarch64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read add-on version from config.yaml
+        id: version
+        run: |
+          VERSION=$(yq -r '.version' trendradar/config.yaml)
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU (only for amd64 — ubuntu-24.04-arm is already ARM-native)
+        uses: docker/setup-qemu-action@v3
+        if: matrix.arch == 'amd64'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract short SHA
+        id: sha
+        run: echo "value=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push (linux/${{ matrix.arch }})
+        uses: docker/build-push-action@v6
+        with:
+          context: trendradar
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          tags: |
+            ghcr.io/ewan-wang/ha-trendradar-${{ matrix.arch }}:latest
+            ghcr.io/ewan-wang/ha-trendradar-${{ matrix.arch }}:${{ steps.version.outputs.value }}
+            ghcr.io/ewan-wang/ha-trendradar-${{ matrix.arch }}:${{ steps.sha.outputs.value }}
+          build-args: |
+            BUILD_FROM=wantcat/trendradar:latest
+            BUILD_ARCH=${{ matrix.build_arg_arch }}
+            BUILD_NAME=TrendRadar
+            BUILD_VERSION=${{ steps.version.outputs.value }}
+            BUILD_DESCRIPTION=AI-driven public opinion monitor
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            BUILD_REF=${{ github.ref_name }}
+            BUILD_REPOSITORY=${{ github.repository }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=GPL-3.0
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "### :white_check_mark: ghcr.io/ewan-wang/ha-trendradar-${{ matrix.arch }}:latest" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- tag \`${{ steps.version.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- tag \`${{ steps.sha.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- source: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
