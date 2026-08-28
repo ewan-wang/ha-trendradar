@@ -1,0 +1,9 @@
+---
+# The build pipeline will set BUILD_FROM to one of these values per architecture
+# and pass it as --build-arg to `docker buildx build`.
+build_from:
+  amd64: wantcat/trendradar:latest
+  aarch64: wantcat/trendradar:latest
+
+# No additional build args needed — we just layer run.sh + defaults on top of the upstream image.
+args: {}

@@ -1,0 +1,128 @@
+---
+version: "0.2.0"
+slug: "trendradar"
+name: "TrendRadar"
+description: "AI-driven public opinion & trend monitor with multi-platform aggregation, RSS, and smart alerts."
+url: "https://github.com/SANSAN0/TrendRadar"
+
+# Multi-arch: upstream image `wantcat/trendradar:latest` ships both linux/amd64 and linux/arm64
+arch:
+  - amd64
+  - aarch64
+
+# Init system: upstream image uses supercronic as PID 1 and is already PID-1 safe.
+# Set init: false so HA Supervisor does NOT wrap the container in tini (avoid double-init).
+init: false
+
+# Network: TrendRadar only makes outbound HTTPS calls to fetch hot topics + push notifications.
+# No mDNS / raw-socket needs, so standard bridge networking is fine.
+host_network: false
+
+# Run after core HA services are up.
+startup: services
+boot: auto
+
+# Ports:
+#   8080 — TrendRadar's own Web UI (reports / news dashboard).
+#   8089 — Visual config editor bundled with this add-on (HA-aware save + restart).
+ports:
+  8080/tcp: 8080
+  8089/tcp: 8089
+
+# Mount HA's /share into the container so config + output persist across container restarts.
+# Inside the container /share/trendradar/ will be linked from /app/{config,output}.
+map:
+  - share:rw
+
+# Don't expose to HA's Ingress iframe — TrendRadar uses its own full-page web UI.
+ingress: false
+
+# Web UI entrypoint (shown in add-on info page).
+# Defaults to the visual config editor — the part most users will want to open first.
+webui: "http://[HOST]:[PORT:8089]"
+
+# Sidebar entry — the visual config editor appears in the HA sidebar.
+# (TrendRadar's own news dashboard on port 8080 is still reachable directly via the host IP.)
+panel: true
+panel_icon: "mdi:radar"
+panel_title: "配置编辑器"
+panel_admin: true
+
+# User-configurable options. We expose the most common knobs and forward them
+# as environment variables to the upstream container in run.sh.
+options:
+  log_level: "info"
+  timezone: "Asia/Shanghai"
+  webserver_port: 8080
+  editor_port: 8089
+  cron_schedule: "*/30 * * * *"
+  run_mode: "cron"
+  immediate_run: true
+  feishu_webhook_url: ""
+  telegram_bot_token: ""
+  telegram_chat_id: ""
+  dingtalk_webhook_url: ""
+  wework_webhook_url: ""
+  wework_msg_type: ""
+  email_from: ""
+  email_password: ""
+  email_to: ""
+  email_smtp_server: ""
+  email_smtp_port: ""
+  ntfy_server_url: "https://ntfy.sh"
+  ntfy_topic: ""
+  ntfy_token: ""
+  bark_url: ""
+  slack_webhook_url: ""
+  generic_webhook_url: ""
+  generic_webhook_template: ""
+  ai_analysis_enabled: false
+  ai_api_key: ""
+  ai_model: ""
+  ai_api_base: ""
+  s3_endpoint_url: ""
+  s3_bucket_name: ""
+  s3_access_key_id: ""
+  s3_secret_access_key: ""
+  s3_region: ""
+
+# Validation schema for the options above.
+schema:
+  log_level: "list(trace|debug|info|notice|warning|error|fatal)"
+  timezone: "str"
+  webserver_port: "port"
+  editor_port: "port"
+  cron_schedule: "str"
+  run_mode: "list(cron|once)"
+  immediate_run: "bool"
+  feishu_webhook_url: "str?"
+  telegram_bot_token: "str?"
+  telegram_chat_id: "str?"
+  dingtalk_webhook_url: "str?"
+  wework_webhook_url: "str?"
+  wework_msg_type: "str?"
+  email_from: "str?"
+  email_password: "password?"
+  email_to: "str?"
+  email_smtp_server: "str?"
+  email_smtp_port: "port?"
+  ntfy_server_url: "str?"
+  ntfy_topic: "str?"
+  ntfy_token: "str?"
+  bark_url: "str?"
+  slack_webhook_url: "str?"
+  generic_webhook_url: "str?"
+  generic_webhook_template: "str?"
+  ai_analysis_enabled: "bool"
+  ai_api_key: "password?"
+  ai_model: "str?"
+  ai_api_base: "str?"
+  s3_endpoint_url: "str?"
+  s3_bucket_name: "str?"
+  s3_access_key_id: "str?"
+  s3_secret_access_key: "password?"
+  s3_region: "str?"
+
+# Image base name — used by HA build pipeline in tandem with build.yaml.
+# Optional but kept for clarity / fallback.
+image: "trendradar-{arch}"
